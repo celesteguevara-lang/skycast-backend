@@ -1,21 +1,40 @@
-// ms_tiempo/src/data/db.js
-// Esta capa de Datos es la que se encarga de hablar con la base de datos
-// Aquí SOLO hay lógica de conexión a SQL Server, nada de lógica de negocio ni HTTP
-const sql = require('mssql/msnodesqlv8');
+const sql = require('mssql');
+require('dotenv').config();
 
 const dbConfig = {
-    connectionString: process.env.SQLSERVER_CONNECTION_STRING
-        || 'Driver={SQL Server};Server=localhost\\SQLEXPRESS;Database=ProyectoClimaHora;Trusted_Connection=yes;'
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  server: process.env.DB_SERVER,
+  database: process.env.DB_DATABASE,
+  port: Number(process.env.DB_PORT || 1433),
+  options: {
+    encrypt: true,
+    trustServerCertificate: true
+  }
 };
 
-const getConnection = async () => {
-    try {
-        const pool = await sql.connect(dbConfig);
-        return pool;
-    } catch (error) {
-        console.error('❌ Error conectando a SQL Server:', error);
-        throw error;
+let poolPromise = null;
+
+async function getConnection() {
+  try {
+    if (!process.env.DB_SERVER) {
+      console.warn('DB_SERVER no está definido. No se intentará conectar a SQL Server.');
+      return null;
     }
-};
 
-module.exports = { getConnection };
+    if (!poolPromise) {
+      poolPromise = sql.connect(dbConfig);
+    }
+
+    return await poolPromise;
+  } catch (error) {
+    console.error('Error conectando a SQL Server:', error.message);
+    throw error;
+  }
+}
+
+module.exports = {
+  sql,
+  getConnection,
+  dbConfig
+};
