@@ -33,12 +33,43 @@ const obtenerCiudadConsulta = (pais) => {
         'Tokio': 'Tokyo',
         'El Cairo': 'Cairo',
         'Riad': 'Riyadh',
-        'Asunción': 'Asuncion'
+        'Asunción': 'Asuncion',
+        'Bogotá': 'Bogota',
+        'México': 'Mexico',
+        'São Paulo': 'Sao Paulo'
     };
 
     return pais.ciudadClima || equivalencias[pais.capital] || pais.capital;
 };
 
+/**
+ * Genera hora local real usando la zona horaria IANA del país.
+ * Ejemplo: Europe/Berlin, America/Managua.
+ */
+const obtenerHoraLocal = (zonaHoraria) => {
+    if (!zonaHoraria) return '--';
+
+    try {
+        return new Intl.DateTimeFormat('es-NI', {
+            timeZone: zonaHoraria,
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        }).format(new Date());
+    } catch (error) {
+        console.error(`❌ Zona horaria inválida: ${zonaHoraria}`, error.message);
+        return '--';
+    }
+};
+
+/**
+ * Mapea el estado del clima de OpenWeather a emojis.
+ */
 const obtenerEmojiClima = (climaPrincipal) => {
     switch (climaPrincipal) {
         case 'Clear':
@@ -100,6 +131,9 @@ const consultarOpenWeather = async (pais) => {
     return response.data;
 };
 
+/**
+ * Consulta clima actual para un país.
+ */
 const consultarClimaActual = async (pais) => {
     if (!pais) {
         throw new Error('País no encontrado');
@@ -108,15 +142,29 @@ const consultarClimaActual = async (pais) => {
     try {
         const data = await consultarOpenWeather(pais);
         const temperatura = Number(data.main.temp.toFixed(1));
+        const horaLocal = obtenerHoraLocal(pais.zonaHoraria);
 
         return {
             pais: pais.nombre,
+            nombre: pais.nombre,
             capital: pais.capital,
+
+            zonaHoraria: pais.zonaHoraria || '--',
+            zona_horaria: pais.zonaHoraria || '--',
+            timezone: pais.zonaHoraria || '--',
+
+            horaLocal,
+            hora_local: horaLocal,
+            localTime: horaLocal,
+
             temperatura,
             temperaturaTexto: `${temperatura}°C`,
             descripcion: data.weather[0].description,
             humedad: data.main.humidity,
-            icono: `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`
+            icono: `https://openweathermap.org/img/wn/${data.weather[0].icon}@2x.png`,
+
+            climaPrincipal: data.weather[0].main,
+            emoji: obtenerEmojiClima(data.weather[0].main)
         };
     } catch (error) {
         console.error(`❌ ERROR consultando clima para ${pais.nombre} - ${pais.capital}:`, {
@@ -129,6 +177,9 @@ const consultarClimaActual = async (pais) => {
     }
 };
 
+/**
+ * Clima por ID de país.
+ */
 const obtenerClimaPorId = async (id) => {
     const pais = await paisesData.obtenerPaisPorId(id);
 
@@ -139,10 +190,18 @@ const obtenerClimaPorId = async (id) => {
     return consultarClimaActual(pais);
 };
 
+/**
+ * Ciudades destacadas para la sección superior.
+ */
 const obtenerClimaDestacado = async () => {
     const todosLosPaises = await paisesData.obtenerTodosLosPaises();
 
-    const nombresDestacados = ['Filipinas', 'Estados Unidos', 'Japón', 'Australia'];
+    const nombresDestacados = [
+        'Filipinas',
+        'Estados Unidos',
+        'Japón',
+        'Australia'
+    ];
 
     const paisesFiltrados = todosLosPaises.filter((pais) =>
         nombresDestacados.includes(pais.nombre)
@@ -169,6 +228,9 @@ const obtenerClimaDestacado = async () => {
     return Promise.all(promesas);
 };
 
+/**
+ * Condiciones globales para la sección inferior.
+ */
 const obtenerClimaGlobal = async () => {
     const todosLosPaises = await paisesData.obtenerTodosLosPaises();
 
@@ -211,13 +273,18 @@ const obtenerClimaGlobal = async () => {
     return Promise.all(promesas);
 };
 
+/**
+ * Lista de países para el buscador/select del frontend.
+ */
 const obtenerListaPaisesBuscador = async () => {
     const todosLosPaises = await paisesData.obtenerTodosLosPaises();
 
     return todosLosPaises.map((pais) => ({
         id: pais.id,
         nombre: pais.nombre,
-        capital: pais.capital
+        capital: pais.capital,
+        zonaHoraria: pais.zonaHoraria || '--',
+        zona_horaria: pais.zonaHoraria || '--'
     }));
 };
 
