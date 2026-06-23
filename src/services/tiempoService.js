@@ -1,76 +1,120 @@
 // ms_tiempo/src/services/tiempoService.js
-// Esta es la capa de Servicios, aquí va toda la lógica de negocio, cálculos, transformaciones, etc.
-// No sabe nada de HTTP ni de SQL puro, solo de lógica de negocio
-const paisesData = require('../data/paisesData');
 
-const obtenerFechaEnZona = (fecha, timeZone) => {
+/**
+ * Devuelve la hora local real según zona horaria IANA.
+ * Ejemplos:
+ * America/Managua
+ * Europe/Berlin
+ * Asia/Riyadh
+ */
+const obtenerHoraLocal = (zonaHoraria) => {
+    if (!zonaHoraria || zonaHoraria === '--') {
+        return '--';
+    }
+
+    try {
+        return new Intl.DateTimeFormat('es-NI', {
+            timeZone: zonaHoraria,
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: true
+        }).format(new Date());
+    } catch (error) {
+        console.error(`❌ Error obteniendo hora local para ${zonaHoraria}:`, error.message);
+        return '--';
+    }
+};
+
+/**
+ * Obtiene el offset de una zona horaria respecto a UTC en minutos.
+ * Esto permite comparar correctamente zonas con horario de verano.
+ */
+const obtenerOffsetMinutos = (zonaHoraria) => {
+    const fecha = new Date();
+
     const partes = new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        hour12: false,
+        timeZone: zonaHoraria,
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit'
+        second: '2-digit',
+        hour12: false
     }).formatToParts(fecha);
 
-    const valor = (tipo) => Number(partes.find(parte => parte.type === tipo).value);
-
-    return Date.UTC(
-        valor('year'),
-        valor('month') - 1,
-        valor('day'),
-        valor('hour') === 24 ? 0 : valor('hour'),
-        valor('minute'),
-        valor('second')
-    );
-};
-
-const calcularDiferenciaHoras = (zonaA, zonaB) => {
-    const ahora = new Date();
-    const fechaA = obtenerFechaEnZona(ahora, zonaA);
-    const fechaB = obtenerFechaEnZona(ahora, zonaB);
-    return Math.round((fechaA - fechaB) / 3600000);
-};
-
-const formatearHoraPais = (pais) => {
-    const opciones = {
-        timeZone: pais.zona_horaria,
-        hour12: true,
-        hour: 'numeric',
-        minute: 'numeric',
-        second: 'numeric',
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-    };
-
-    const formatter = new Intl.DateTimeFormat('es-NI', opciones);
-
-    return {
-        pais: pais.nombre,
-        capital: pais.capital,
-        zona_horaria: pais.zona_horaria,
-        fecha_y_hora: formatter.format(new Date())
-    };
-};
-
-// Esta función calcula la hora real, no sabe nada de HTTP ni de SQL puro
-const calcularHoraPais = async (id) => {
-    // 1. Le pedimos a la capa de Datos que busque el país
-    const pais = await paisesData.obtenerPaisPorId(id);
-    
-    if (!pais) {
-        throw new Error('El país solicitado no existe en la base de datos.');
+    const valores = {};
+    for (const parte of partes) {
+        if (parte.type !== 'literal') {
+            valores[parte.type] = parte.value;
+        }
     }
 
-    return formatearHoraPais(pais);
+    const fechaZona = Date.UTC(
+        Number(valores.year),
+        Number(valores.month) - 1,
+        Number(valores.day),
+        Number(valores.hour),
+        Number(valores.minute),
+        Number(valores.second)
+    );
+
+    return (fechaZona - fecha.getTime()) / 60000;
 };
 
-module.exports = { 
-    calcularHoraPais,
-    calcularDiferenciaHoras,
-    formatearHoraPais
+/**
+ * Calcula diferencia horaria entre dos zonas.
+ * Base por defecto: Nicaragua.
+ */
+const calcularDiferenciaHoraria = (
+    zonaPais,
+    zonaReferencia = 'America/Managua'
+) => {
+    if (!zonaPais || zonaPais === '--') {
+        return {
+            horas: null,
+            texto: '--'
+        };
+    }
+
+    try {
+        const offsetPais = obtenerOffsetMinutos(zonaPais);
+        const offsetReferencia = obtenerOffsetMinutos(zonaReferencia);
+
+        const diferencia = Math.round((offsetPais - offsetReferencia) / 60);
+
+        let texto = 'Misma hora que Nicaragua';
+
+        if (diferencia > 0) {
+            texto = `${diferencia} hora${diferencia === 1 ? '' : 's'} más que Nicaragua`;
+        }
+
+        if (diferencia < 0) {
+            const abs = Math.abs(diferencia);
+            texto = `${abs} hora${abs === 1 ? '' : 's'} menos que Nicaragua`;
+        }
+
+        return {
+            horas: diferencia,
+            texto
+        };
+    } catch (error) {
+        console.error('❌ Error calculando diferencia horaria:', error.message);
+
+        return {
+            horas: null,
+            texto: '--'
+        };
+    }
+};
+
+module.exports = {
+    obtenerHoraLocal,
+    calcularDiferenciaHoraria,
+    obtenerOffsetMinutos
 };

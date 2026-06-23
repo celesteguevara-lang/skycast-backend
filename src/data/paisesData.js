@@ -7,16 +7,18 @@ const { getConnection } = require('./db');
  * Nicaragua debe existir porque el sistema compara cada país contra Nicaragua.
  */
 const paisesLocales = [
-    {
-        id: 1,
-        nombre: 'Nicaragua',
-        capital: 'Managua',
-        zonaHoraria: 'America/Managua'
-    },
+   {
+    id: 1,
+    nombre: 'Nicaragua',
+    capital: 'Managua',
+    ciudadClima: 'Managua',
+    zonaHoraria: 'America/Managua'
+},
     {
         id: 2,
         nombre: 'Costa Rica',
         capital: 'San José',
+        ciudadClima: 'San José',
         zonaHoraria: 'America/Costa_Rica'
     },
     {
@@ -169,12 +171,13 @@ const paisesLocales = [
         capital: 'París',
         zonaHoraria: 'Europe/Paris'
     },
-    {
-        id: 28,
-        nombre: 'Alemania',
-        capital: 'Berlín',
-        zonaHoraria: 'Europe/Berlin'
-    },
+   {
+    id: 28,
+    nombre: 'Alemania',
+    capital: 'Berlín',
+    ciudadClima: 'Berlin',
+    zonaHoraria: 'Europe/Berlin'
+},
     {
         id: 29,
         nombre: 'Italia',
